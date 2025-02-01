@@ -2,7 +2,9 @@
   "name": "konoha-mk-3",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
+    "register": "tsc && node --env-file=.env dist/register.js",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
@@ -12,8 +14,13 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.6.4",
     "@cloudflare/workers-types": "^4.20250129.0",
+    "@types/node": "^22.13.0",
+    "discord-api-types": "^0.37.118",
     "typescript": "^5.5.2",
     "vitest": "2.1.8",
     "wrangler": "^3.107.2"
+  },
+  "dependencies": {
+    "discord-hono": "^0.12.0"
   }
 }
