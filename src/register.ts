@@ -3,6 +3,7 @@ import { Command, Option, register } from 'discord-hono'
 const commands = [
   new Command('hello', 'response world'),
   new Command('help', 'response help').options(new Option('text', 'with text')),
+  new Command('setup', 'setup command'),
 ]
 
 register(

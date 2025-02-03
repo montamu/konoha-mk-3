@@ -21,6 +21,7 @@
     "wrangler": "^3.107.2"
   },
   "dependencies": {
+    "@discordjs/rest": "^2.4.2",
     "discord-hono": "^0.12.0"
   }
 }
