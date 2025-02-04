@@ -1,5 +1,5 @@
 import { Button, Components, DiscordHono } from 'discord-hono'
-import { createTextChannel } from './rest';
+import { createRest, createTextChannel } from './rest';
 // import type { CommandContext } from 'discord-hono'
 
 // "konoha-mk-3"という名前のテキストチャンネルを作成し、そこでボット操作用ボタンと説明文を表示する。
@@ -30,8 +30,11 @@ const app = new DiscordHono<Env>()
         return await c.followup('This command must be run in a guild.');
       }
     
+      // RESTクライアントを作成
+      const rest = createRest(c.env.DISCORD_TOKEN);
+
       // テキストチャンネルを作成
-      const channel = await createTextChannel(c.env.DISCORD_TOKEN, guildId, 'konoha-mk-3');
+      const channel = await createTextChannel(rest, guildId, 'konoha-mk-3');
       console.log('channel: ', channel);
   
       return await c.followup('Setting up the command...');
