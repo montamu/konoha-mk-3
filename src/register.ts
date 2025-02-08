@@ -1,10 +1,9 @@
-import { Command, Option, register } from 'discord-hono'
+import { register } from 'discord-hono'
+import * as handlers from './handlers/index.js'
 
-const commands = [
-  new Command('hello', 'response world'),
-  new Command('help', 'response help').options(new Option('text', 'with text')),
-  new Command('setup', 'setup command'),
-]
+const commands = Object.values(handlers)
+  .filter(e => 'command' in e)
+  .map(e => e.command)
 
 register(
   commands,
