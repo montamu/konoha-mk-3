@@ -2,19 +2,19 @@
 	"compilerOptions": {
 	  /* Visit https://aka.ms/tsconfig.json to read more about this file */
 	  /* Language and Environment */
-	  "target": "es2021",
-	  "lib": ["es2021"],
-	  "jsx": "react",
+	  "target": "esnext",
+	  "lib": ["esnext"],
 	  /* Modules */
-	  "module": "es2022",
+	  "module": "esnext",
 	  "moduleResolution": "Bundler",
-	  "types": ["@cloudflare/workers-types/2023-07-01", "node"],
+	  "types": ["@cloudflare/workers-types", "node"],
 	  "resolveJsonModule": true,
 	  /* JavaScript Support */
 	  "allowJs": true,
 	  "checkJs": false,
 	  /* Emit */
 	  "outDir": "./dist",
+	  "rootDir": "./src",
 	  /* Interop Constraints */
 	  "isolatedModules": true,
 	  "allowSyntheticDefaultImports": true,
@@ -24,6 +24,6 @@
 	  /* Completeness */
 	  "skipLibCheck": true
 	},
-	"include": ["src/**/*"],
+	"include": ["src/**/*", "worker-configuration.d.ts"],
 	"exclude": ["test"]
   }

@@ -1,6 +1,6 @@
-import { Command, _guilds_$_channels, _channels_$_messages, Components, Button } from 'discord-hono';
+import { Command, _guilds_$_channels, _channels_$_messages } from 'discord-hono';
 import { factory } from '../init.js';
-import type { APITextChannel } from 'discord-api-types/v10';
+import { SETUP_MESSAGE } from '../constants/setup-message.js';
 
 export const command_setup = factory.command(
   new Command('setup', 'Setup the bot'),
@@ -13,22 +13,18 @@ export const command_setup = factory.command(
       }
 
       // テキストチャンネルを作成
-      const channelResponse = await c.rest.post(_guilds_$_channels, [guildId], {
+      const channelResponse = await c.rest('POST', _guilds_$_channels, [guildId], {
         name: 'konoha-mk-3',
         type: 0,
       });
-      const channel: APITextChannel = await channelResponse.json();
+      const channel = await channelResponse.json();
 
       // メッセージを作成
-      const content = 'Hello, world!';
-      const components = new Components().row(
-        new Button('split-start', ['🔀', 'チーム分け'], 'Primary'),
-      ).toJSON();
+      const content = SETUP_MESSAGE;
 
       // メッセージを送信
-      await c.rest.post(_channels_$_messages, [channel.id], {
+      await c.rest('POST', _channels_$_messages, [channel.id], {
         content,
-        components,
       });
   
       return await c.followup('Setting up the command...');
@@ -36,4 +32,5 @@ export const command_setup = factory.command(
       console.error(e)
       return await c.followup('An error occurred while setting up the command.')
     }
-  }),);
+  }),
+);
