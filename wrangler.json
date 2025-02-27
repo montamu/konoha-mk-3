@@ -16,5 +16,11 @@
       "database_name": "konoha-mk-3",
       "database_id": "49bf5994-8c93-497d-86b2-6a9cdfdc5f46"
     }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "e3c6321feaef45cb81e87603d0c7605a"
+    }
   ]
 }
