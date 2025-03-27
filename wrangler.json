@@ -19,8 +19,8 @@
   ],
   "kv_namespaces": [
     {
-      "binding": "KV",
-      "id": "e3c6321feaef45cb81e87603d0c7605a"
+      "binding": "KV_VC_MESSAGES",
+      "id": "2ff6219731074b108095ea8179b7a52e"
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { factory } from "../init.js";
-import { Command, Option, Components, Button, Embed, _guilds_$_voicestates_$, _guilds_$_scheduledevents } from "discord-hono";
+import { Command, Option, Embed, _channels_$_messages_$_reactions_$_me } from "discord-hono";
 
 type Var = {
   game: string;
@@ -33,31 +33,38 @@ export const command_ready = factory.command<Var>(
         return await c.followup('このコマンドはギルド内で実行する必要があります');
       }
 
+      const interactionChannelId = c.interaction.channel?.id;
+
+      if (!interactionChannelId) {
+        return await c.followup('チャンネル情報が取得できませんでした');
+      }
+
       // オプションの内容を取得
       const game = c.var.game;
       const channel = c.var.channel;
       const title = c.var.title;
 
-      // イベントの開始時刻
-      const startTime = new Date();
-      startTime.setMinutes(startTime.getMinutes() + 5);
+      // TODO: チームをDBに保存(teamテーブルにはinteraction_id, game_id, voice_channel_idを保存)
+      // TODO: チームメンバーをDBに保存(team_memberテーブルにはteam_id, user_idを保存)
 
-      // イベントを作成(これは後でボイスチャンネル内のユーザーを取得するための下準備)
-      const event = await c.rest('POST', _guilds_$_scheduledevents, [guildId], {
-        channel_id: channel,
-        name: title,
-        privacy_level: 2, // ギルド内の全ユーザーが参加可能
-        scheduled_start_time: startTime.toISOString(),
-        entity_type: 2, // ボイスチャンネル
-      });
+      const embed = new Embed()
+        .title(title)
+        .description('チーム分けに参加する方は👍を押してください')
+        .fields(
+          { name: 'ゲーム', value: game },
+        );
 
-      const eventJson = await event.json();
-      const eventId = eventJson.id;
+      // あとでチーム分けボタンを押したときに、ボタンを押した人が参加しているボイスチャンネルIDからmessage_idを取得して、
+      // 該当メッセージに対して特定の絵文字👍でリアクションしているユーザーを取得することでチーム分けに参加するユーザーを特定する。
 
-      // KVにキーをチャンネルID、バリューをイベントIDとして保存
-      await c.env.KV.put(channel, eventId);
+      const followupMessage = await c.followup({ embeds: [embed] });
+      const messageId = (await followupMessage.json()).id;
 
-      return await c.followup('カスタムマッチ用のイベントを作成しました！');
+      // ボイスチャンネルID、メッセージIDをKVに保存
+      await c.env.KV_VC_MESSAGES.put(channel, messageId);
+      
+      // 自分が出した募集メッセージに👍でリアクションする
+      return await c.rest('PUT', _channels_$_messages_$_reactions_$_me, [interactionChannelId, messageId, '👍']); 
     } catch (e) {
       console.error(e);
       return await c.followup('カスタムマッチのチャンネル設定中にエラーが発生しました');
