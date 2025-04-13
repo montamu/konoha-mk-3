@@ -1,20 +1,11 @@
 import type { APIUser } from "discord-api-types/v10";
 import { factory } from "../init.js";
-import { Command, Components, Button, Embed, _guilds_$_voicestates_$, _guilds_$_scheduledevents_$_users } from "discord-hono";
+import { Command, Components, Button, Embed, _guilds_$_voicestates_$, _channels_$_messages_$, _channels_$_messages_$_reactions_$, _guilds_$_channels, _guilds_$_members_$ } from "discord-hono";
 
 export const command_split = factory.command(
   new Command('split', 'チーム分けを開始します'),
   c => c.resDefer(async c => {
     try {
-      const embed = new Embed().title('チーム分け').fields(
-        { name: 'チーム1', value: 'チーム1のメンバー', inline: true },
-        { name: 'チーム2', value: 'チーム2のメンバー', inline: true },
-      );
-      const components = new Components().row(
-        component_split_confirm.component,
-      );
-
-      // ボタンを押したユーザーが参加しているボイスチャンネルのメンバーを取得
       const guildId = c.interaction.guild_id;
       const user = c.interaction.member?.user;
 
@@ -26,25 +17,65 @@ export const command_split = factory.command(
         return await c.followup('ユーザー情報が取得できませんでした');
       }
       
-      // ボイスチャンネルのIDを取得
+      // コマンドを実行したユーザーが現在入室中のボイスチャンネルのIDを取得
       const voiceStateResponse = await c.rest('GET', _guilds_$_voicestates_$, [guildId, user.id]);
       const voiceState = await voiceStateResponse.json();
-      console.log('voiceState: ', voiceState);
 
-      const channelId = voiceState.channel_id;
+      const voiceChannelId = voiceState.channel_id;
 
-      if (!channelId) {
+      if (!voiceChannelId) {
         return await c.followup('ボイスチャンネルに参加している必要があります');
       }
+      
+      // KVから募集メッセージのIDを取得
+      const messageId = await c.env.KV_VC_MESSAGES.get(voiceChannelId);
 
-      // テスト用
+      if (!messageId) {
+        return await c.followup('募集メッセージが見つかりませんでした。/readyコマンドを実行して募集メッセージを作成してください。');
+      }
+
+      const textChannelId = c.interaction.channel?.id;
+
+      if (!textChannelId) {
+        return await c.followup('テキストチャンネルの情報が取得できませんでした');
+      }
+
+      const encodedReaction = encodeURIComponent('👍');
+
+      // 募集メッセージにリアクションしたユーザーを取得
+      // TODO: なぜかレスポンスが空なので原因を詳しく調べる
+      const ReactionUsersResponse = await c.rest('GET', _channels_$_messages_$_reactions_$, [textChannelId, messageId, encodedReaction]);
+      const ReactionUsers = await ReactionUsersResponse.json();
+      
+      // RESTGetAPIChannelMessageReactionUsersResultとAPIUser[]は同じ型
+      const users: APIUser[] = ReactionUsers;
+
+      if (users.length === 0) {
+        return await c.followup('リアクションしたユーザーがいません。/readyコマンドを実行して募集メッセージを作成してください。');
+      }
+
+      // チーム分け
+      const { team1, team2 } = splitTeams(users);
+
+      // チーム情報をOKボタンから呼び出すためにDBに保存
+      
+
+      // 表示するEmbedとボタンを作成
+      const embed = new Embed().title('チーム分け').fields(
+        { name: 'チーム1', value: team1.map(user => user.global_name).join(', ') },
+        { name: 'チーム2', value: team2.map(user => user.global_name).join(', ') },
+      );
+
+      const components = new Components().row(
+        component_split_confirm.component,
+        component_split_retry.component,
+      );
+
+      // チーム分け候補、OKボタン、リトライボタンを表示
       return await c.followup({ embeds: [embed], components });
-  
-      // TODO: KVにセットしたチャンネルIDに紐づくイベントIDを取得する。
-      // TODO: イベントに参加中のユーザー一覧を取得する。c.rest('GET', _guilds_$_scheduledevents_$_users, [guildId, eventId]);
     } catch (e) {
-      console.error(e)
-      return await c.followup('An error occurred while starting the team split.')
+      console.error('/split error', e);
+      return await c.followup('エラーが発生しました。しばらくしてから再度実行してください。');
     }
   }),
 );
@@ -55,31 +86,78 @@ export const command_split = factory.command(
 export const component_split_confirm = factory.component(
   new Button('split-confirm', ['✅', 'OK'], 'Primary'),
   c => c.resDefer(async c => {
+    const guildId = c.interaction.guild_id;
+    const user = c.interaction.member?.user;
+
+    if (!guildId) {
+      return await c.followup('このコマンドはギルド内で実行する必要があります');
+    }
+    
+    if (!user) {
+      return await c.followup('ユーザー情報が取得できませんでした');
+    }
+    
+    // コマンドを実行したユーザーが現在入室中のボイスチャンネルのIDを取得
+    const voiceStateResponse = await c.rest('GET', _guilds_$_voicestates_$, [guildId, user.id]);
+    const voiceState = await voiceStateResponse.json();
+
+    const voiceChannelId = voiceState.channel_id;
+
+    if (!voiceChannelId) {
+      return await c.followup('ボイスチャンネルに参加している必要があります');
+    }
+
+    // チーム用のボイスチャンネルを2つ作成する
+    const team1ChannelResponse = await c.rest('POST', _guilds_$_channels, [guildId], {
+      name: 'チーム1',
+      type: 2, // ボイスチャンネル
+    })
+    const team1Channel = await team1ChannelResponse.json();
+
+    const team2ChannelResponse = await c.rest('POST', _guilds_$_channels, [guildId], {
+      name: 'チーム2',
+      type: 2, // ボイスチャンネル
+    })
+    const team2Channel = await team2ChannelResponse.json();
+
+    // TODO: チーム1とチーム2のチームメンバーを取得する
+
+
+    // TODO: チーム1とチーム2にユーザーを移動する
+
     return await c.followup('チーム分けを開始します');
   }),
 );
 
 export const component_split_retry = factory.component(
   new Button('split-retry', ['🔄', 'Retry'], 'Secondary'),
-  c => c.resDefer(async c => {
+  /* c => c.resDeferUpdate(async c => {
     return await c.followup('チーム分けをやり直します');
-  }),
+  }), */
+  c => {
+    const embed = new Embed().title('チーム分け').fields(
+      { name: 'チーム1', value: 'user1' },
+      { name: 'チーム2', value: 'user2' },
+    );
+
+    return c.resUpdate({ embeds: [embed] });
+  },
 );
 
-const splitTeams = (members: APIUser[]) => {
+const splitTeams = (users: APIUser[]) => {
 	// ユーザーをランダムにシャッフル
-	const shuffledMembers = shuffleArray(members);
+	const shuffledUsers = shuffleArray(users);
 
 	// チームに分ける
-	const team1 = shuffledMembers.slice(0, Math.floor(members.length / 2));
+	const team1 = shuffledUsers.slice(0, Math.floor(users.length / 2));
 
-	const team2 = shuffledMembers.slice(Math.floor(members.length / 2));
+	const team2 = shuffledUsers.slice(Math.floor(users.length / 2));
 
 	return { team1, team2 };
 };
 
 // ユーザーの配列をランダムにシャッフルする関数
-const shuffleArray = <T>(array: T[]): T[] => {
+const shuffleArray = <T>(array: T[]): T[] =>{
 	for (let i = array.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
 		[array[i], array[j]] = [array[j], array[i]]; // 要素を交換

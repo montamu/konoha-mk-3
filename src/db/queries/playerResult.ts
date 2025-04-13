@@ -1,11 +1,9 @@
 import { sql, and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
-import type { Env } from '../init';
-import { game, playerResult } from './schema';
+import type { Env } from '../../init';
+import { playerResult } from '../schema';
 
 // https://orm.drizzle.team/docs/connect-cloudflare-d1
-
-// playerResult table query.
 
 export const incrementWinCount = async ({
   env,
@@ -74,14 +72,4 @@ export const getPlayerResult = async ({
         eq(playerResult.discordGuildId, discordGuildId),
         eq(playerResult.discordUserId, discordUserId),
     ));
-};
-
-// game table query.
-
-export const getActiveGames = async (env: Env) => {
-  const db = drizzle(env.Bindings.DB);
-  return await db
-    .select()
-    .from(game)
-    .where(eq(game.active, true));
 };

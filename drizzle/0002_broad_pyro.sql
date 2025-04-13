@@ -1,0 +1,1 @@
+ALTER TABLE `match` ADD `discordVoiceChannelId` text NOT NULL;
