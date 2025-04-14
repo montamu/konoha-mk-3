@@ -1,6 +1,8 @@
 import type { APIUser } from "discord-api-types/v10";
 import { factory } from "../init.js";
 import { Command, Components, Button, Embed, _guilds_$_voicestates_$, _channels_$_messages_$, _channels_$_messages_$_reactions_$, _guilds_$_channels, _guilds_$_members_$ } from "discord-hono";
+import { type Member, createTeamMembers, getTeamMembers } from "../db/queries/teamMember.js";
+import { getTeams } from "../db/queries/team.js";
 
 export const command_split = factory.command(
   new Command('split', 'チーム分けを開始します'),
@@ -57,8 +59,28 @@ export const command_split = factory.command(
       // チーム分け
       const { team1, team2 } = splitTeams(users);
 
+      // readyコマンドであらかじめ作成した空のチームを取得
+      const teams = await getTeams(c.env.DB, voiceChannelId);
+
+      if (teams.length === 0) {
+        return await c.followup('チームが見つかりませんでした。');
+      }
+
+      const firstTeamId = teams.filter(team => team.teamNumber === 1)[0].teamId;
+      const secondTeamId = teams.filter(team => team.teamNumber === 2)[0].teamId;
+
       // チーム情報をOKボタンから呼び出すためにDBに保存
-      
+      const team1Members: Member[] = team1.map(user => ({
+        teamId: firstTeamId,
+        discordUserId: user.id,
+        discordDisplayName: user.global_name ?? '',
+      }));
+      const team2Members: Member[] = team2.map(user => ({
+        teamId: secondTeamId,
+        discordUserId: user.id,
+        discordDisplayName: user.global_name ?? '',
+      }));
+      await createTeamMembers(c.env.DB, [...team1Members, ...team2Members]);
 
       // 表示するEmbedとボタンを作成
       const embed = new Embed().title('チーム分け').fields(
@@ -120,10 +142,23 @@ export const component_split_confirm = factory.component(
     })
     const team2Channel = await team2ChannelResponse.json();
 
-    // TODO: チーム1とチーム2のチームメンバーを取得する
-
+    // チーム1とチーム2のチームメンバーを取得する
+    const teamMembers = await getTeamMembers(c.env.DB, voiceChannelId);
+    if (teamMembers.length === 0) {
+      return await c.followup('チームメンバーが見つかりませんでした。もう一度/splitコマンドを実行してください。');
+    }
 
     // TODO: チーム1とチーム2にユーザーを移動する
+    for (const member of teamMembers) {
+      const userId = member.discordUserId;
+      const teamNumber = member.teamNumber;
+      const channelId = teamNumber === 1 ? team1Channel.id : team2Channel.id;
+
+      // ユーザーをボイスチャンネルに移動
+      await c.rest('PATCH', _guilds_$_members_$, [guildId, userId], {
+        channel_id: channelId,
+      });
+    }
 
     return await c.followup('チーム分けを開始します');
   }),

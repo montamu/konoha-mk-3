@@ -74,10 +74,7 @@ export const command_ready = factory.command<Var>(
       const messageId = (await followupMessage.json()).id;
 
       // ボイスチャンネルID、メッセージIDをKVに保存
-      await c.env.KV_VC_MESSAGES.put(channel, messageId);
-      
-      // 自分が出した募集メッセージに👍でリアクションする
-      return await c.rest('PUT', _channels_$_messages_$_reactions_$_me, [interactionChannelId, messageId, '👍']); 
+      return await c.env.KV_VC_MESSAGES.put(channel, messageId);
     } catch (e) {
       console.error(e);
       return await c.followup('カスタムマッチのチャンネル設定中にエラーが発生しました');
